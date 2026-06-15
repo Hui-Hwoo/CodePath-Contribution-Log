@@ -8,7 +8,7 @@ Contribution log for open source capstone issues.
 
 | Issue                        | Phase I | Phase II | Phase III | Phase IV |
 | ---------------------------- | :-----: | :------: | :-------: | :------: |
-| [Issue 1](Issues/issue-1.md) |   🌗    |    🌑    |    🌑     |    🌑    |
+| [Issue 1](Issues/issue-1.md) |   🌕    |    🌖    |    🌑     |    🌑    |
 | Issue 2                      |   🌑    |    🌑    |    🌑     |    🌑    |
 | Issue 3                      |   🌑    |    🌑    |    🌑     |    🌑    |
 
