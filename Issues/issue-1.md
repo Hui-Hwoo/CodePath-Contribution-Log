@@ -178,7 +178,7 @@ Explored the codebase to trace how the Telegram 2FA flow works (`telegram.rs`, `
 
 Implemented all three endpoints, confirmed `cargo check` passes, and opened Draft PR #1.
 
-### Week 2 Progress — Code review and refinements
+### Week 3 Progress — Code review and refinements
 
 After a self-review of the initial commit I found and fixed five issues:
 
