@@ -172,11 +172,15 @@ curl -X POST -u admin:pass -H "X-Requested-With: XMLHttpRequest" \
 
 ## Implementation Notes
 
-### Week 1 Progress — Initial implementation
+### Week 2 Progress — Repository exploration, reproduction, and draft PR
 
-Explored the codebase to trace how the Telegram 2FA flow works (`telegram.rs`, `bot_actions.rs`) and how the dashboard handles existing sensitive endpoints (`agent_api.rs` orphan-resolution, `actions.rs` trust-exec). Identified `verify_dashboard_totp()` as the reusable gate.
+Switched to this issue after the previous issue (compass-calendar #1092) was closed upstream before work could begin. Selected innerwarden #71 as a replacement.
 
-Implemented all three endpoints, confirmed `cargo check` passes, and opened Draft PR #1.
+Familiarized with the repository structure and traced the existing Telegram 2FA flow through `telegram.rs`, `bot_actions.rs`, and `process/incidents.rs` to understand how `PendingConfirmation` and `ApprovalResult` are used. Explored how the dashboard handles existing sensitive endpoints in `agent_api.rs` (orphan-resolution) and `actions.rs` (trust-exec) to understand the established patterns for TOTP gating, operator extraction, and audit logging.
+
+Reproduced the issue by confirming all three target endpoints return 404 on the upstream codebase. Identified `verify_dashboard_totp()` as the reusable gate and `Option<axum::Extension<AuthenticatedUser>>` as the correct extractor pattern.
+
+Implemented the initial version of the three endpoints, confirmed `cargo check -p innerwarden-agent` passes with zero errors, and opened [Draft PR #1](https://github.com/Hui-Hwoo/innerwarden/pull/1).
 
 ### Week 3 Progress — Code review and refinements
 
