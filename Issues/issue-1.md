@@ -198,6 +198,12 @@ After a self-review of the initial commit I found and fixed five issues:
 
 Also added: sorting by deadline ascending, richer success responses (`action_description` in body), and 9 additional unit tests (14 total).
 
+### Week 4 Progress — PR submission and Phase IV completion
+
+Submitted the PR from the fork to the upstream repository ([InnerWarden/innerwarden#1141](https://github.com/InnerWarden/innerwarden/pull/1141)). Wrote a full PR description including the implementation rationale, operation-order diagram for `api_2fa_approve`, a security considerations table, the complete 14-test summary, and per-commit notes. PR is currently open and awaiting maintainer review.
+
+Updated the CodePath contribution log to reflect Phase IV status.
+
 ### Code Changes
 
 - **Files modified:**
