@@ -3,7 +3,7 @@
 **Contribution Number:** 1  
 **Student:** Hui Hwoo  
 **Issue:** [innerwarden #71 — Implement dashboard 2FA approval endpoints](https://github.com/InnerWarden/innerwarden/issues/71)  
-**Status:** Phase III [Complete]
+**Status:** Phase IV [Complete]
 
 ---
 
@@ -218,15 +218,17 @@ Also added: sorting by deadline ascending, richer success responses (`action_des
 
 ## Pull Request
 
-**PR Link:** [https://github.com/Hui-Hwoo/innerwarden/pull/1](https://github.com/Hui-Hwoo/innerwarden/pull/1)
+**Upstream PR:** [InnerWarden/innerwarden#1141](https://github.com/InnerWarden/innerwarden/pull/1141)  
+**Fork PR (draft):** [Hui-Hwoo/innerwarden#1](https://github.com/Hui-Hwoo/innerwarden/pull/1)
 
-**PR Description:** Full implementation notes, operation order rationale, security considerations table, per-commit summary, and manual test plan documented in the PR body.
+**Contribution summary:**  
+Added three REST endpoints to `crates/agent/src/dashboard/` (`GET /api/2fa/pending`, `POST /api/2fa/approve/:id`, `POST /api/2fa/deny/:id`) that give the web dashboard feature-parity with the existing Telegram TOTP approval flow. Extended `DashboardState` with a shared `pending_approvals` store and an optional outcome back-channel. New module `dashboard/two_fa.rs` implements the handlers with TOTP gating on approve, audit logging on both actions, `approval_id` validation, optional deny body, a TOCTOU guard, and a background cleanup task for expired entries. Includes 14 unit tests covering expiry logic, map mechanics, response shapes, and error paths.
 
 **Maintainer Feedback:**
 
 - *(awaiting review)*
 
-**Status:** Draft — awaiting maintainer review
+**Status:** Awaiting review
 
 ---
 
