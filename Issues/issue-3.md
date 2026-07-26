@@ -5,7 +5,7 @@
 **Issue:** [DSpace #12307 — Configurable limit on number of entries for metadata fields](https://github.com/DSpace/DSpace/issues/12307)  
 **Fork:** [Hui-Hwoo/DSpace](https://github.com/Hui-Hwoo/DSpace)  
 **Branch:** [`fix-issue-12307`](https://github.com/Hui-Hwoo/DSpace/tree/fix-issue-12307)  
-**Status:** Phase II [Solution Planning — Complete]
+**Status:** Phase III [Build & Test — Complete]
 
 ---
 
@@ -164,15 +164,75 @@ The existing `NOT_REPEATABLE` validation at `MetadataValidator.java` line 225 (`
 
 ## Implementation Notes
 
-_To be filled in during Phase III._
+### Implementation Progress
+
+| Commit | Description |
+|--------|-------------|
+| [`4f319f4b32`](https://github.com/Hui-Hwoo/DSpace/commit/4f319f4b32) | Add configurable max-occurrences limit for submission form fields |
+| [`6a65dbac42`](https://github.com/Hui-Hwoo/DSpace/commit/6a65dbac42) | Add unit tests for max-occurrences field parsing in DCInput |
+
+**Files modified:**
+
+| File | Change |
+|------|--------|
+| `dspace/config/submission-forms.dtd` (line 11) | Added `max-occurrences?` to the `field` content model; added `<!ELEMENT max-occurrences (#PCDATA)>` element declaration (line 27) |
+| `dspace/config/submission-forms.xml` (line 233) | Added `<max-occurrences>10</max-occurrences>` to the `dc.subject` field in `traditionalpagetwo` as example configuration |
+| `dspace-api/src/main/java/org/dspace/app/util/DCInput.java` (lines 134–138, 204–212, 327–335) | Added `private int maxOccurrences = -1` field declaration; parsing logic in constructor with `Integer.parseInt` and error handling; `getMaxOccurrences()` getter |
+| `dspace-api/src/main/java/org/dspace/validation/MetadataValidator.java` (lines 58, 234–239) | Added `ERROR_VALIDATION_MAX_OCCURRENCES` constant; validation check that flags each entry beyond the configured limit |
+| `dspace-server-webapp/src/main/java/org/dspace/app/rest/model/SubmissionFormFieldRest.java` (lines 68–71, 171–187) | Added `private Integer maxOccurrences` field (boxed type for `@JsonInclude(NON_NULL)` compatibility); getter and setter |
+| `dspace-server-webapp/src/main/java/org/dspace/app/rest/converter/SubmissionFormConverter.java` (lines 103–105) | Map `maxOccurrences` from `DCInput` to `SubmissionFormFieldRest` when positive |
+| `dspace-api/src/test/java/org/dspace/app/util/DCInputTest.java` (new file, 98 lines) | Unit tests for max-occurrences parsing: default value, valid integer, whitespace handling, invalid input, empty string |
+
+### Challenges Faced
+
+1. **Test infrastructure incompatibility with JDK 25:** DSpace's `AbstractDSpaceTest` and `AbstractUnitTest` base classes initialize the DSpace kernel and use Mockito's ByteBuddy agent, which doesn't recognize Java 25 (`Unknown Java version: 0`). I resolved this by writing `DCInputTest` as a standalone JUnit test without extending the DSpace base classes — which is valid because `DCInput` is a POJO that only needs a `HashMap` to construct. The test compiles and passes successfully on the current JVM.
+
+2. **Choosing the right type for the REST field:** The `SubmissionFormFieldRest` class uses `@JsonInclude(value = Include.NON_NULL)` to omit null fields from JSON responses. If I used a primitive `int` for `maxOccurrences`, it would always serialize (defaulting to 0), breaking backwards compatibility for fields without the config. I used boxed `Integer` instead, which serializes only when explicitly set — maintaining the same JSON structure for all existing fields.
+
+3. **DTD element ordering constraint:** The DTD uses a strict sequence model for the `field` element. I placed `max-occurrences?` immediately after `repeatable?` because semantically it's a constraint on repetition, and because `DCInputsReader` parses elements by tag name (not position), so the parser didn't need changes.
+
+### Testing
+
+#### Automated Tests
+
+Ran `DCInputTest` (6 test cases, all pass):
+
+```
+$ mvn test -pl dspace-api -Dtest=DCInputTest -DskipUnitTests=false
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+Test cases:
+- `testMaxOccurrencesDefault` — Verifies `-1` (unlimited) returned when `<max-occurrences>` absent
+- `testMaxOccurrencesParsesValidValue` — Verifies `5` parsed correctly from `"5"`
+- `testMaxOccurrencesParsesWithWhitespace` — Verifies `10` parsed from `"  10  "` (trimming)
+- `testMaxOccurrencesInvalidValueDefaultsToUnlimited` — Verifies graceful fallback for `"abc"`
+- `testMaxOccurrencesEmptyValueDefaultsToUnlimited` — Verifies graceful fallback for `""`
+- `testRepeatableFieldParsing` — Baseline test confirming existing repeatable parsing unchanged
+
+#### Manual Testing
+
+1. **Compilation:** Both `dspace-api` and `dspace-server-webapp` compile cleanly with `mvn compile -pl dspace-api,dspace-server-webapp -am -DskipTests`
+2. **Checkstyle:** `mvn checkstyle:check -pl dspace-api,dspace-server-webapp` passes with no violations
+3. **XML validation:** Verified that `submission-forms.xml` validates against the updated DTD using `xmllint --valid`. Pre-existing validation warnings (unrelated element ordering in other forms) remain unchanged — no new warnings introduced.
+4. **Diff review:** Confirmed all changes are scoped to the issue — no unrelated formatting, no commented-out code, no extra files modified.
+
+#### Edge Cases Identified and Handled
+
+- **Invalid (non-numeric) values:** `DCInput` logs a warning and defaults to `-1` (unlimited) — does not crash
+- **Empty string:** Treated as absent — field remains unlimited
+- **Whitespace padding:** `Integer.parseInt(maxOccStr.trim())` handles leading/trailing whitespace
+- **`max-occurrences` on non-repeatable field:** The validator only checks `maxOccurrences > 0`, which is independent of the repeatable check — a non-repeatable field already fails at `size > 1`, so the max-occurrences check is effectively redundant but harmless
+- **REST API backwards compatibility:** Using boxed `Integer` + `@JsonInclude(NON_NULL)` ensures the field is omitted from JSON for all existing configurations
 
 ---
 
 ## Pull Request
 
-**PR Link:** _Not yet submitted_
+**PR Link:** [Hui-Hwoo/DSpace#1](https://github.com/Hui-Hwoo/DSpace/pull/1)
 
-**Status:** Planning
+**Status:** Open in fork (awaiting review before submitting to upstream DSpace/DSpace)
 
 ---
 
@@ -183,16 +243,20 @@ _To be filled in during Phase III._
 - **DSpace architecture:** Learned how submission forms are configured via XML (`submission-forms.xml`), constrained by DTD, parsed by `DCInputsReader.java` into `DCInput.java` model objects, validated by `MetadataValidator.java`, and exposed to the Angular frontend via `SubmissionFormFieldRest.java` through `SubmissionFormConverter.java`.
 - **Configuration-driven validation:** Understood how DSpace separates form definition (XML) from form behavior (Java parsing and validation), allowing administrators to customize submission workflows without code changes.
 - **Maven multi-module builds:** Learned that SNAPSHOT inter-module dependencies require `mvn install` from the root before individual modules can resolve them for testing.
+- **JSON serialization design:** Learned to use boxed types (`Integer` vs `int`) with Jackson's `@JsonInclude(NON_NULL)` to maintain backwards-compatible REST API responses when adding optional fields.
+- **DTD schema design:** Learned how XML DTD content models enforce element ordering, and how to add optional elements to a strict sequence without breaking existing documents.
 
 ### Challenges Overcome
 
 - **Large codebase navigation:** DSpace is a substantial Java project with multiple Maven modules (`dspace-api`, `dspace-server-webapp`, etc.). Finding the relevant files required tracing the data flow from XML config through `DCInputsReader` → `DCInput` → `MetadataValidator` → `SubmissionFormConverter` → `SubmissionFormFieldRest`.
 - **Identifying the analogous pattern:** The key insight was finding the `regex` feature (commit `d026d72017`) as a precedent — it was added after the original codebase and followed the exact same path that `max-occurrences` needs to follow. This confirmed the implementation approach before writing any code.
 - **Build dependency resolution:** Tests wouldn't run until all SNAPSHOT modules were installed locally. Understanding Maven's dependency resolution for multi-module projects was essential.
+- **JDK 25 incompatibility with test framework:** DSpace's test base classes use Mockito ByteBuddy which doesn't support Java 25. Worked around this by writing standalone unit tests for the POJO layer, which proved sufficient for validating the parsing logic.
 
 ### What I'd Do Differently Next Time
 
-_To be updated after implementation._
+- **Set up JDK 21 from the start.** Using JDK 25 caused issues with the test framework (Mockito/ByteBuddy) that wouldn't have occurred on the project's target JDK. While the code compiles fine on newer JVMs, the test infrastructure doesn't, which limited integration test options.
+- **Read the PR template before writing code.** The DSpace PR template includes a REST Contract checklist item — knowing this earlier would have helped me plan whether a separate RestContract PR is needed (it likely is for this feature, as it adds a new field to the submission form endpoint).
 
 ---
 
