@@ -170,6 +170,7 @@ The existing `NOT_REPEATABLE` validation at `MetadataValidator.java` line 225 (`
 |--------|-------------|
 | [`4f319f4b32`](https://github.com/Hui-Hwoo/DSpace/commit/4f319f4b32) | Add configurable max-occurrences limit for submission form fields |
 | [`6a65dbac42`](https://github.com/Hui-Hwoo/DSpace/commit/6a65dbac42) | Add unit tests for max-occurrences field parsing in DCInput |
+| [`da1835a3ef`](https://github.com/Hui-Hwoo/DSpace/commit/da1835a3ef) | Add integration test for maxOccurrences in REST API response |
 
 **Files modified:**
 
@@ -182,6 +183,8 @@ The existing `NOT_REPEATABLE` validation at `MetadataValidator.java` line 225 (`
 | `dspace-server-webapp/src/main/java/org/dspace/app/rest/model/SubmissionFormFieldRest.java` (lines 68–71, 171–187) | Added `private Integer maxOccurrences` field (boxed type for `@JsonInclude(NON_NULL)` compatibility); getter and setter |
 | `dspace-server-webapp/src/main/java/org/dspace/app/rest/converter/SubmissionFormConverter.java` (lines 103–105) | Map `maxOccurrences` from `DCInput` to `SubmissionFormFieldRest` when positive |
 | `dspace-api/src/test/java/org/dspace/app/util/DCInputTest.java` (new file, 98 lines) | Unit tests for max-occurrences parsing: default value, valid integer, whitespace handling, invalid input, empty string |
+| `dspace-api/src/test/data/dspaceFolder/config/submission-forms.xml` (line 643) | Added `<max-occurrences>10</max-occurrences>` to test config for integration testing |
+| `dspace-server-webapp/src/test/java/org/dspace/app/rest/SubmissionFormsControllerIT.java` (line 768) | Added `findTraditionalPageTwoMaxOccurrences()` integration test verifying REST API output |
 
 ### Challenges Faced
 
@@ -195,7 +198,7 @@ The existing `NOT_REPEATABLE` validation at `MetadataValidator.java` line 225 (`
 
 #### Automated Tests
 
-Ran `DCInputTest` (6 test cases, all pass):
+**Unit tests** — `DCInputTest.java` (6 test cases, all pass):
 
 ```
 $ mvn test -pl dspace-api -Dtest=DCInputTest -DskipUnitTests=false
@@ -211,12 +214,25 @@ Test cases:
 - `testMaxOccurrencesEmptyValueDefaultsToUnlimited` — Verifies graceful fallback for `""`
 - `testRepeatableFieldParsing` — Baseline test confirming existing repeatable parsing unchanged
 
+**Integration test** — `SubmissionFormsControllerIT.findTraditionalPageTwoMaxOccurrences()`:
+
+Added to the existing `SubmissionFormsControllerIT.java` integration test class. This test:
+- Calls `GET /api/config/submissionforms/traditionalpagetwo` via MockMvc
+- Asserts `$.rows[0].fields[0].maxOccurrences` equals `10` (dc.subject with limit)
+- Asserts `$.rows[1].fields[0].maxOccurrences` does not exist (dc.description.abstract without limit)
+- Verifies backwards compatibility: fields without `<max-occurrences>` do not include the property in the JSON response
+
+This test follows the exact same pattern as the existing `findTraditionalPageOne()` test in the same file, using the same `AbstractControllerIntegrationTest` base class, `getClient(token).perform(get(...))` pattern, and `jsonPath` assertions.
+
+Note: The integration test requires the DSpace test infrastructure (Spring Boot test context, H2 database, MockMvc) which requires JDK 21 to run. It compiles successfully on our environment but can only be fully executed in CI or on a JDK 21 system.
+
 #### Manual Testing
 
 1. **Compilation:** Both `dspace-api` and `dspace-server-webapp` compile cleanly with `mvn compile -pl dspace-api,dspace-server-webapp -am -DskipTests`
 2. **Checkstyle:** `mvn checkstyle:check -pl dspace-api,dspace-server-webapp` passes with no violations
 3. **XML validation:** Verified that `submission-forms.xml` validates against the updated DTD using `xmllint --valid`. Pre-existing validation warnings (unrelated element ordering in other forms) remain unchanged — no new warnings introduced.
 4. **Diff review:** Confirmed all changes are scoped to the issue — no unrelated formatting, no commented-out code, no extra files modified.
+5. **Unit tests pass:** All 6 DCInputTest cases pass on our JVM after merging upstream changes.
 
 #### Edge Cases Identified and Handled
 
@@ -230,9 +246,10 @@ Test cases:
 
 ## Pull Request
 
-**PR Link:** [Hui-Hwoo/DSpace#1](https://github.com/Hui-Hwoo/DSpace/pull/1)
+**PR Link (upstream):** [DSpace/DSpace#12921](https://github.com/DSpace/DSpace/pull/12921)  
+**PR Link (fork):** [Hui-Hwoo/DSpace#1](https://github.com/Hui-Hwoo/DSpace/pull/1)
 
-**Status:** Open in fork (awaiting review before submitting to upstream DSpace/DSpace)
+**Status:** Open — submitted to upstream, awaiting maintainer review
 
 ---
 
