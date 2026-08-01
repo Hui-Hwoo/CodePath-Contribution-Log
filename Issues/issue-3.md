@@ -5,7 +5,7 @@
 **Issue:** [DSpace #12307 — Configurable limit on number of entries for metadata fields](https://github.com/DSpace/DSpace/issues/12307)  
 **Fork:** [Hui-Hwoo/DSpace](https://github.com/Hui-Hwoo/DSpace)  
 **Branch:** [`fix-issue-12307`](https://github.com/Hui-Hwoo/DSpace/tree/fix-issue-12307)  
-**Status:** Phase III [Build & Test — Complete]
+**Status:** Phase IV [Ship & Reflect — Complete]
 
 ---
 
@@ -140,29 +140,38 @@ The existing `NOT_REPEATABLE` validation at `MetadataValidator.java` line 225 (`
 
 ## Testing Strategy
 
-### Unit Tests
+### Unit Tests (`DCInputTest.java` — 6 tests, all passing)
 
-- [ ] Test case 1: `DCInput` parses `<max-occurrences>5</max-occurrences>` and returns `5` from `getMaxOccurrences()`
-- [ ] Test case 2: `DCInput` returns `-1` (unlimited) when `<max-occurrences>` is absent
-- [ ] Test case 3: `MetadataValidator` rejects submission with 6 entries when max is 5
-- [ ] Test case 4: `MetadataValidator` accepts submission with 5 entries when max is 5
-- [ ] Test case 5: `MetadataValidator` accepts any number of entries when max is absent (`-1`)
-- [ ] Test case 6: `DCInputsReader` warns when `<max-occurrences>` is set on a non-repeatable field
+- [x] Test case 1: `DCInput` parses `<max-occurrences>5</max-occurrences>` and returns `5` from `getMaxOccurrences()`
+- [x] Test case 2: `DCInput` returns `-1` (unlimited) when `<max-occurrences>` is absent
+- [x] Test case 3: `DCInput` handles whitespace around the value (`"  10  "` → `10`)
+- [x] Test case 4: `DCInput` gracefully handles invalid non-numeric values (`"abc"` → `-1`)
+- [x] Test case 5: `DCInput` gracefully handles empty string (`""` → `-1`)
+- [x] Test case 6: Baseline test confirming existing `repeatable` field parsing is unchanged
 
-### Integration Tests
+### Integration Test (`SubmissionFormsControllerIT.java` — 1 test)
 
-- [ ] REST API response includes `maxOccurrences: 5` for a field configured with `<max-occurrences>5</max-occurrences>`
-- [ ] REST API response includes `maxOccurrences: -1` for fields without the config (backwards compatibility)
+- [x] REST API response includes `maxOccurrences: 10` for a field configured with `<max-occurrences>10</max-occurrences>`
+- [x] REST API response omits `maxOccurrences` entirely for fields without the config (backwards compatibility via `@JsonInclude(NON_NULL)`)
 
 ### Manual Testing
 
-- Modify `submission-forms.xml` to add `<max-occurrences>5</max-occurrences>` to the `dc.subject` field
-- Build with `mvn install -DskipTests` and verify the REST API response at `/api/config/submissionforms/traditional` includes `maxOccurrences`
-- Verify the existing test suite passes with `mvn test`
+- [x] Compilation passes: `mvn compile -pl dspace-api,dspace-server-webapp -am -DskipTests`
+- [x] Checkstyle passes: `mvn checkstyle:check -pl dspace-api,dspace-server-webapp`
+- [x] XML validates against updated DTD: `xmllint --valid dspace/config/submission-forms.xml`
+- [x] Unit tests pass after merging latest upstream: `mvn test -pl dspace-api -Dtest=DCInputTest` → 6/6 pass
 
 ---
 
 ## Implementation Notes
+
+### Week 1 Progress — Implementation and unit tests
+
+Implemented the `max-occurrences` feature across all layers (DTD, DCInput, MetadataValidator, SubmissionFormFieldRest, SubmissionFormConverter) and added 6 unit tests in `DCInputTest.java`. Created a PR in the fork repository for self-review.
+
+### Week 2 Progress — Integration test, upstream sync, and PR submission
+
+Merged latest upstream changes (20 commits including a large bulk-import feature) into the branch — no conflicts. Added an integration test (`findTraditionalPageTwoMaxOccurrences()`) in the existing `SubmissionFormsControllerIT.java` that verifies the REST API includes `maxOccurrences` when configured and omits it when not. Submitted the final PR to upstream [DSpace/DSpace#12921](https://github.com/DSpace/DSpace/pull/12921).
 
 ### Implementation Progress
 
@@ -246,10 +255,17 @@ Note: The integration test requires the DSpace test infrastructure (Spring Boot 
 
 ## Pull Request
 
-**PR Link (upstream):** [DSpace/DSpace#12921](https://github.com/DSpace/DSpace/pull/12921)  
-**PR Link (fork):** [Hui-Hwoo/DSpace#1](https://github.com/Hui-Hwoo/DSpace/pull/1)
+**Upstream PR:** [DSpace/DSpace#12921](https://github.com/DSpace/DSpace/pull/12921)  
+**Fork PR:** [Hui-Hwoo/DSpace#1](https://github.com/Hui-Hwoo/DSpace/pull/1)
 
-**Status:** Open — submitted to upstream, awaiting maintainer review
+**Contribution summary:**  
+Added an optional `<max-occurrences>` XML element to the DSpace submission form field definition schema. Threaded the property through all layers: DTD schema → `DCInput.java` parsing → `MetadataValidator.java` enforcement → `SubmissionFormFieldRest.java` REST model → `SubmissionFormConverter.java` mapping. Includes 6 unit tests (`DCInputTest.java`) and 1 integration test (`SubmissionFormsControllerIT.findTraditionalPageTwoMaxOccurrences()`). The change is fully backwards-compatible — fields without the element behave identically to before.
+
+**Maintainer Feedback:**
+
+- *(awaiting review)*
+
+**Status:** Open — submitted to upstream on 2026-08-01, awaiting maintainer review
 
 ---
 
